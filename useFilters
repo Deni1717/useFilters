@@ -1,0 +1,119 @@
+import { useMemo } from 'react';
+import { filterSorts } from '../utils/tables';
+
+export const compareByText = ({ value, text }) => {
+  if (!text) return true;
+  if (!value) return false;
+  return value.toLowerCase().includes(text.toLowerCase());
+};
+
+export const sortSearchResults = ({ results, key, text }) => {
+  if (text === '') return results;
+  const lowerText = text.toLowerCase();
+  return [...results].sort((a, b) => {
+    let propA = key ? a[key] : a;
+    let propB = key ? b[key] : b;
+    if (isNaN(propA)) {
+      propA = propA.toLowerCase();
+    }
+    if (isNaN(propB)) {
+      propB = propB.toLowerCase();
+    }
+    const indexA = propA.indexOf(lowerText);
+    const indexB = propB.indexOf(lowerText);
+
+    if (!indexA && indexB) {
+      return -1;
+    }
+    if (indexA && !indexB) {
+      return 1;
+    }
+
+    return propA > propB ? 1 : -1;
+  });
+};
+
+export const useFilterByPage = (tableRows, page, qty) => {
+  const sortedRows = useMemo(() => {
+    const count = qty ? Math.ceil(tableRows.length / qty) : 0;
+    let newPage = page;
+    if (count < newPage) {
+      newPage = 1;
+    }
+    if (newPage && qty) {
+      return tableRows.filter(
+        (row, i) => i < newPage * qty && i >= (newPage - 1) * qty
+      );
+    }
+    return tableRows;
+  }, [tableRows, page, qty]);
+
+  return sortedRows;
+};
+
+export const useSortHeaders = (tableRows, method, prop) => {
+  //Filter by a-z z-a
+  const sortedRows = useMemo(() => {
+    if (method && prop) {
+      return [...tableRows].sort((a, b) => {
+        let propA = a[prop]
+          ? Array.isArray(a[prop])
+            ? a[prop].join(', ')
+            : a[prop]
+          : '';
+        let propB = b[prop]
+          ? Array.isArray(b[prop])
+            ? b[prop].join(', ')
+            : b[prop]
+          : '';
+        if (prop === 'date') {
+          propA = propA ? new Date(propA).getTime() : 0;
+          propB = propB ? new Date(propB).getTime() : 0;
+        } else {
+          if (isNaN(propA)) {
+            propA = propA.toLowerCase();
+          }
+          if (isNaN(propB)) {
+            propB = propB.toLowerCase();
+          }
+        }
+        if (method === filterSorts.ASC) {
+          if (!isNaN(propA) && isNaN(propB)) return 1;
+          if (isNaN(propA) && !isNaN(propB)) return -1;
+          return propA > propB ? 1 : -1;
+        } else {
+          if (!isNaN(propA) && isNaN(propB)) return -1;
+          if (isNaN(propA) && !isNaN(propB)) return 1;
+          return propA > propB ? -1 : 1;
+        }
+      });
+    }
+    return tableRows;
+  }, [tableRows, method, prop]);
+
+  return sortedRows;
+};
+
+export const useFilterByText = (tableRows, text, keys) => {
+  const filteredRows = useMemo(() => {
+    if (text && Array.isArray(keys)) {
+      return tableRows.filter((row) => {
+        for (const key in row) {
+          if (keys.includes(key)) {
+            try {
+              if (compareByText({ value: row[key], text })) {
+                return true;
+              }
+            } catch (error) {
+              console.log(error);
+            }
+          }
+        }
+        return false;
+      });
+    }
+    return tableRows;
+  }, [tableRows, text, keys]);
+
+  return filteredRows;
+};
